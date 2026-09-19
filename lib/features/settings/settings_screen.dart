@@ -129,6 +129,7 @@ class _WeeklyReflectionTile extends ConsumerWidget {
             onTap: () async {
               final weekday = await _pickWeekday(context, settings.reflectionWeekday);
               if (weekday == null) return;
+              if (!context.mounted) return;
               final picked = await showTimePicker(context: context, initialTime: time);
               if (picked == null) return;
               await ref.read(notificationSettingsRepositoryProvider).updateWeeklyReflection(
@@ -173,6 +174,7 @@ class _RecurringSetupTile extends ConsumerWidget {
             onTap: () async {
               final weekday = await _pickWeekday(context, settings.recurringWeekday);
               if (weekday == null) return;
+              if (!context.mounted) return;
               final picked = await showTimePicker(context: context, initialTime: time);
               if (picked == null) return;
               await ref.read(notificationSettingsRepositoryProvider).updateRecurringSetup(

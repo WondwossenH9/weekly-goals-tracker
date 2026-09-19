@@ -60,6 +60,8 @@ class NotificationService {
       _nextInstanceOfDaily(hour, minute),
       const NotificationDetails(android: _androidChannel),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }
@@ -78,6 +80,8 @@ class NotificationService {
       _nextInstanceOfWeekly(weekday, hour, minute),
       const NotificationDetails(android: _androidChannel),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
     );
   }
@@ -94,6 +98,8 @@ class NotificationService {
       _nextInstanceOfWeekly(weekday, hour, minute),
       const NotificationDetails(android: _androidChannel),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
     );
   }

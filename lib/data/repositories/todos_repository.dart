@@ -1,4 +1,5 @@
 import "package:drift/drift.dart";
+import "package:uuid/uuid.dart";
 
 import "../local/database.dart";
 import "weeks_repository.dart";
@@ -41,7 +42,8 @@ class TodosRepository {
     final missing = daysOfWeek.where((d) => !existing.contains(d));
     for (final day in missing) {
       await _db.into(_db.todos).insert(
-            TodosCompanion.insert(goalId: goalId, dayOfWeek: day),
+            TodosCompanion.insert(
+                id: const Uuid().v4(), goalId: goalId, dayOfWeek: day),
           );
     }
   }

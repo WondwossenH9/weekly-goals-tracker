@@ -6,6 +6,13 @@ import "package:path/path.dart" as p;
 import "package:path_provider/path_provider.dart";
 
 import "tables.dart";
+// Re-exported (not just imported) so that any file importing database.dart
+// also gets TodoState — drift regenerates fresh classes for every *table*
+// (Week, Goal, TodoItem, ...) directly inside database.g.dart, so those are
+// already visible to importers of this file, but a plain Dart enum like
+// TodoState is never touched by the generator and stays wherever it was
+// declared unless explicitly re-exported here.
+export "tables.dart" show TodoState;
 
 part "database.g.dart";
 

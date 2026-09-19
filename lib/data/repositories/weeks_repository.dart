@@ -1,4 +1,5 @@
 import "package:drift/drift.dart";
+import "package:uuid/uuid.dart";
 
 import "../local/database.dart";
 import "../../core/week_utils.dart";
@@ -15,10 +16,10 @@ class WeeksRepository {
         .getSingleOrNull();
     if (existing != null) return existing;
 
-    final id = await _db.into(_db.weeks).insertReturning(
-          WeeksCompanion.insert(startDate: weekStart),
+    final row = await _db.into(_db.weeks).insertReturning(
+          WeeksCompanion.insert(id: const Uuid().v4(), startDate: weekStart),
         );
-    return id;
+    return row;
   }
 
   Stream<Week?> watchWeek(String weekStart) {

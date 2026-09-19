@@ -175,7 +175,7 @@ class _TemplateEditorSheetState extends ConsumerState<_TemplateEditorSheet> {
   late final _titleController =
       TextEditingController(text: widget.existing?.goalTitle ?? "");
   late String _rule = widget.existing?.rule ?? "weekly";
-  late Set<int> _customDays = {
+  late final Set<int> _customDays = {
     ...?widget.existing?.customDays
         ?.split(",")
         .where((s) => s.trim().isNotEmpty)

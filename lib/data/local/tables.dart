@@ -1,12 +1,11 @@
 import "package:drift/drift.dart";
-import "package:uuid/uuid.dart";
 
 /// One row per calendar week the user has ever had a goal in.
 /// week start is always a Monday (ISO week), stored as a date-only string
 /// (yyyy-MM-dd) so it is stable across timezones.
 @DataClassName('Week')
 class Weeks extends Table {
-  TextColumn get id => text().clientDefault(() => const Uuid().v4())();
+  TextColumn get id => text()();
   TextColumn get startDate => text()(); // yyyy-MM-dd, Monday of that week
   RealColumn get completionPct => real().withDefault(const Constant(0))();
   TextColumn get reflectionText => text().withDefault(const Constant(""))();
@@ -23,7 +22,7 @@ class Weeks extends Table {
 /// recurrenceTemplateId) so editing one week never touches another.
 @DataClassName('Goal')
 class Goals extends Table {
-  TextColumn get id => text().clientDefault(() => const Uuid().v4())();
+  TextColumn get id => text()();
   TextColumn get weekId =>
       text().references(Weeks, #id, onDelete: KeyAction.cascade)();
   TextColumn get title => text().withLength(min: 1, max: 200)();
@@ -44,7 +43,7 @@ enum TodoState { done, ongoing, notDone }
 
 @DataClassName('TodoItem')
 class Todos extends Table {
-  TextColumn get id => text().clientDefault(() => const Uuid().v4())();
+  TextColumn get id => text()();
   TextColumn get goalId =>
       text().references(Goals, #id, onDelete: KeyAction.cascade)();
   // 1 = Monday ... 7 = Sunday, matching DateTime.weekday.
@@ -62,7 +61,7 @@ class Todos extends Table {
 /// Editing this only affects weeks generated after the edit.
 @DataClassName('RecurrenceTemplate')
 class RecurrenceTemplates extends Table {
-  TextColumn get id => text().clientDefault(() => const Uuid().v4())();
+  TextColumn get id => text()();
   TextColumn get goalTitle => text()();
   // One of: weekly, biweekly, custom
   TextColumn get rule => text()();

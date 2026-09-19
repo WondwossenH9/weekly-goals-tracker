@@ -21,5 +21,9 @@ build/
 /android/
 /linux/
 
+# Generated code (drift's database.g.dart, etc.) — regenerate locally with
+# `dart run build_runner build --delete-conflicting-outputs` per the README.
+*.g.dart
+
 # macOS
 .DS_Store

@@ -3,7 +3,6 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 
 import "core/theme/app_theme.dart";
 import "features/history/history_screen.dart";
-import "features/recurring/recurrence_engine.dart";
 import "features/settings/settings_screen.dart";
 import "features/summary/summary_screen.dart";
 import "features/weekly_view/weekly_view_screen.dart";

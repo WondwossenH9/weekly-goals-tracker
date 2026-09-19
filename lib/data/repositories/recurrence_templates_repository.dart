@@ -1,4 +1,5 @@
 import "package:drift/drift.dart";
+import "package:uuid/uuid.dart";
 
 import "../../core/week_utils.dart";
 import "../local/database.dart";
@@ -25,6 +26,7 @@ class RecurrenceTemplatesRepository {
   }) {
     return _db.into(_db.recurrenceTemplates).insertReturning(
           RecurrenceTemplatesCompanion.insert(
+            id: const Uuid().v4(),
             goalTitle: goalTitle,
             rule: rule,
             customDays: Value(

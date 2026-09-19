@@ -57,7 +57,7 @@ class TodoTile extends StatelessWidget {
                 WeekUtils.dayLabel(dayOfWeek),
                 style: TextStyle(
                   fontSize: 10,
-                  color: todo == null ? scheme.outline : fg.withOpacity(0.8),
+                  color: todo == null ? scheme.outline : fg.withValues(alpha: 0.8),
                 ),
               ),
               const SizedBox(height: 2),

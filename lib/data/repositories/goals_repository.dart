@@ -1,4 +1,5 @@
 import "package:drift/drift.dart";
+import "package:uuid/uuid.dart";
 
 import "../local/database.dart";
 
@@ -21,6 +22,7 @@ class GoalsRepository {
   }) {
     return _db.into(_db.goals).insertReturning(
           GoalsCompanion.insert(
+            id: const Uuid().v4(),
             weekId: weekId,
             title: title,
             isRecurring: Value(isRecurring),
