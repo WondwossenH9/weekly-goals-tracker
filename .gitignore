@@ -1,0 +1,25 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+
+# Secrets — never commit real Supabase keys
+.env
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Platform folders are generated locally via `flutter create` (see README)
+# and intentionally not tracked here since they weren't hand-authored.
+/android/
+/linux/
+
+# macOS
+.DS_Store
