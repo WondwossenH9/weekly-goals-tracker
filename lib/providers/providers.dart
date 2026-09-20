@@ -101,14 +101,19 @@ final currentWeekProvider = StreamProvider<Week?>((ref) {
 });
 
 final goalsForCurrentWeekProvider = StreamProvider<List<Goal>>((ref) {
-  final weekAsync = ref.watch(currentWeekProvider);
-  return weekAsync.when(
-    data: (week) => week == null
-        ? const Stream.empty()
-        : ref.watch(goalsRepositoryProvider).watchGoalsForWeek(week.id),
-    loading: () => const Stream.empty(),
-    error: (_, __) => const Stream.empty(),
+  // .select() here is load-bearing, not a style choice: this provider
+  // only needs the week's id, which is stable for a given week. Without
+  // select, watching currentWeekProvider directly would re-run this
+  // provider's build function (tearing down and recreating its stream
+  // subscription, with a loading flicker in between) on every field
+  // change to that row — including completion_pct on every todo toggle
+  // and reflection_text on every reflection keystroke-save. That flicker
+  // is what was destroying the reflection TextField's focus.
+  final weekId = ref.watch(
+    currentWeekProvider.select((async) => async.valueOrNull?.id),
   );
+  if (weekId == null) return const Stream.empty();
+  return ref.watch(goalsRepositoryProvider).watchGoalsForWeek(weekId);
 });
 
 /// Resolves the currently-selected week for one-off actions (adding a
