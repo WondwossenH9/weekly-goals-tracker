@@ -18,13 +18,15 @@ class WeeklyViewScreen extends ConsumerWidget {
         title: const Text("This Week"),
         actions: [
           weekAsync.maybeWhen(
-            data: (week) => Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Center(
-                child: Text("${week.completionPct.round()}%",
-                    style: Theme.of(context).textTheme.titleMedium),
-              ),
-            ),
+            data: (week) => week == null
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.only(right: 16),
+                    child: Center(
+                      child: Text("${week.completionPct.round()}%",
+                          style: Theme.of(context).textTheme.titleMedium),
+                    ),
+                  ),
             orElse: () => const SizedBox.shrink(),
           ),
         ],
@@ -88,7 +90,7 @@ class WeeklyViewScreen extends ConsumerWidget {
       BuildContext context, WidgetRef ref, String title) async {
     if (title.trim().isEmpty) return;
     try {
-      final week = await ref.read(currentWeekProvider.future);
+      final week = await resolveCurrentWeek(ref);
       final goal = await ref
           .read(goalsRepositoryProvider)
           .createGoal(weekId: week.id, title: title.trim());
@@ -151,7 +153,7 @@ class _GoalRow extends ConsumerWidget {
                             dayOfWeek: day,
                             todo: byDay[day],
                             onTap: () async {
-                              final week = await ref.read(currentWeekProvider.future);
+                              final week = await resolveCurrentWeek(ref);
                               await todosRepo.cycleState(byDay[day]!, week.id);
                             },
                           ),

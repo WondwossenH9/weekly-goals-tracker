@@ -76,6 +76,24 @@ find ~ -iname "weekly_goals_tracker.sqlite*" -delete
 flutter run -d linux
 ```
 
+## If Summary looked frozen at 0% after toggling todos
+
+Separate bug, same debugging session: `currentWeekProvider` was a one-shot
+`FutureProvider` — fetched the `Week` row exactly once and cached it
+forever, even though toggling a todo updates `completion_pct` in the
+database on every tap. The day chips still worked because they're on
+their own live stream watching the `todos` table directly; nothing wired
+Summary's ring, per-goal bars, or per-day chart up the same way — they
+either read that stale one-shot value, or (for the per-goal/per-day
+breakdown) used a plain one-shot `Future` inside a `FutureBuilder` that
+never re-ran on its own. Fixed by making `currentWeekProvider` a
+`StreamProvider` that watches the DB reactively, and adding
+`TodosRepository.watchTodosByGoalForWeek()` (a live stream) in place of
+the old one-shot `todosByGoalForWeek()`, which has been removed entirely
+rather than left around for something else to accidentally call again.
+No schema change here — just `git pull` and rebuild, no need to clear
+local data for this one.
+
 ## 1. Local setup
 
 ```bash

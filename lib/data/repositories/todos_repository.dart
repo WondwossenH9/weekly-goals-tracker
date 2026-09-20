@@ -16,14 +16,21 @@ class TodosRepository {
         .watch();
   }
 
-  /// All todos for every goal in a week, keyed by goalId — this is what the
-  /// weekly view screen renders as its day x goal grid.
-  Future<Map<String, List<TodoItem>>> todosByGoalForWeek(
-      List<String> goalIds) async {
-    if (goalIds.isEmpty) return {};
-    final rows = await (_db.select(_db.todos)
-          ..where((t) => t.goalId.isIn(goalIds)))
-        .get();
+  /// All todos for every goal in a week, keyed by goalId — live-updating,
+  /// re-emitting every time any todo in [goalIds] changes. (There used to
+  /// be a one-shot Future version of this; it caused the Summary screen to
+  /// freeze at whatever it looked like when first opened, since nothing
+  /// ever re-ran the Future just because a todo's state changed elsewhere.
+  /// Removed rather than left around as a trap for future callers.)
+  Stream<Map<String, List<TodoItem>>> watchTodosByGoalForWeek(
+      List<String> goalIds) {
+    if (goalIds.isEmpty) return Stream.value(const {});
+    return (_db.select(_db.todos)..where((t) => t.goalId.isIn(goalIds)))
+        .watch()
+        .map(_groupByGoal);
+  }
+
+  Map<String, List<TodoItem>> _groupByGoal(List<TodoItem> rows) {
     final map = <String, List<TodoItem>>{};
     for (final row in rows) {
       map.putIfAbsent(row.goalId, () => []).add(row);

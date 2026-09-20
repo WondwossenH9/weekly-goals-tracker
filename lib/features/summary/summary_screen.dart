@@ -21,11 +21,13 @@ class SummaryScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text("Week Summary")),
       body: weekAsync.when(
-        data: (week) => goalsAsync.when(
-          data: (goals) => _SummaryBody(week: week, goals: goals),
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text("$e")),
-        ),
+        data: (week) => week == null
+            ? const Center(child: CircularProgressIndicator())
+            : goalsAsync.when(
+                data: (goals) => _SummaryBody(week: week, goals: goals),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(child: Text("$e")),
+              ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text("$e")),
       ),
@@ -42,8 +44,8 @@ class _SummaryBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final todosRepo = ref.watch(todosRepositoryProvider);
 
-    return FutureBuilder<Map<String, List<TodoItem>>>(
-      future: todosRepo.todosByGoalForWeek(goals.map((g) => g.id).toList()),
+    return StreamBuilder<Map<String, List<TodoItem>>>(
+      stream: todosRepo.watchTodosByGoalForWeek(goals.map((g) => g.id).toList()),
       builder: (context, snapshot) {
         final byGoal = snapshot.data ?? {};
         final allTodos = byGoal.values.expand((t) => t).toList();

@@ -89,18 +89,36 @@ final selectedWeekStartProvider = StateProvider<String>((ref) {
   return WeekUtils.currentWeekStart();
 });
 
-/// Resolves (creating if necessary) the [Week] row for whatever week is
-/// currently selected.
-final currentWeekProvider = FutureProvider<Week>((ref) async {
+/// The Week row for whatever week is currently selected — live-updating,
+/// not a one-shot fetch. This does NOT create the row if missing; by the
+/// time anything watches this, _StartupGate has already guaranteed the
+/// current week's row exists (and History only ever selects weeks that
+/// already exist), so null here should only ever be a brief transient
+/// state, never a steady-state outcome.
+final currentWeekProvider = StreamProvider<Week?>((ref) {
   final weekStart = ref.watch(selectedWeekStartProvider);
-  return ref.watch(weeksRepositoryProvider).getOrCreateWeek(weekStart);
+  return ref.watch(weeksRepositoryProvider).watchWeek(weekStart);
 });
 
 final goalsForCurrentWeekProvider = StreamProvider<List<Goal>>((ref) {
   final weekAsync = ref.watch(currentWeekProvider);
   return weekAsync.when(
-    data: (week) => ref.watch(goalsRepositoryProvider).watchGoalsForWeek(week.id),
+    data: (week) => week == null
+        ? const Stream.empty()
+        : ref.watch(goalsRepositoryProvider).watchGoalsForWeek(week.id),
     loading: () => const Stream.empty(),
     error: (_, __) => const Stream.empty(),
   );
 });
+
+/// Resolves the currently-selected week for one-off actions (adding a
+/// goal, cycling a todo) that need a concrete Week row right now rather
+/// than a stream to watch. Self-heals by creating the row if the reactive
+/// stream somehow hasn't produced one yet — should only ever be a narrow
+/// startup-timing edge case, never the normal path.
+Future<Week> resolveCurrentWeek(WidgetRef ref) async {
+  final week = await ref.read(currentWeekProvider.future);
+  if (week != null) return week;
+  final weekStart = ref.read(selectedWeekStartProvider);
+  return ref.read(weeksRepositoryProvider).getOrCreateWeek(weekStart);
+}

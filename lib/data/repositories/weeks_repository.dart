@@ -46,10 +46,16 @@ class WeeksRepository {
     return rows.isEmpty ? null : rows.first;
   }
 
+  /// Live-updating version of getOrCreateWeek's lookup — does not create
+  /// the row itself (by the time anything watches this, _StartupGate has
+  /// already guaranteed it exists), but re-emits whenever this week's row
+  /// changes, which getOrCreateWeek's one-shot Future never did.
   Stream<Week?> watchWeek(String weekStart) {
     return (_db.select(_db.weeks)
-          ..where((w) => w.startDate.equals(weekStart)))
-        .watchSingleOrNull();
+          ..where((w) => w.startDate.equals(weekStart))
+          ..limit(1))
+        .watch()
+        .map((rows) => rows.isEmpty ? null : rows.first);
   }
 
   Future<List<Week>> pastWeeks({
