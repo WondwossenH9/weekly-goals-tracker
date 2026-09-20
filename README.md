@@ -51,6 +51,31 @@ you start.
   on the first build — normal for hand-written code that hasn't touched a
   toolchain yet, but budget an hour for it, not zero.
 
+## If you built this before schemaVersion 3
+
+An early version had a real startup race: on desktop, Flutter can fire an
+initial `AppLifecycleState.resumed` callback before first-time
+initialization finishes, and two concurrent calls to
+`ensureCurrentWeekIsPopulated()` could both decide "no row for this week
+yet" and both insert one — leaving two `Week` rows with the same
+`start_date`. Every later lookup by date then throws `Bad state: too many
+elements`, which breaks goal creation, the weekly view, and the Summary
+screen all at once (that's one bug, not three). Fixed by: a guard so the
+lifecycle callback can't run before initialization completes, a unique
+index on `weeks.start_date` as a DB-level backstop, and a local sqlite
+path fix (`getApplicationSupportDirectory()` instead of
+`getApplicationDocumentsDirectory()`, which was dropping the db file in
+your visible `~/Documents` rather than a private app-data folder).
+
+None of this retroactively fixes duplicate rows already sitting in a local
+database from before this fix. If you ran the app before pulling this
+change, delete the old database file once, then rebuild:
+
+```bash
+find ~ -iname "weekly_goals_tracker.sqlite*" -delete
+flutter run -d linux
+```
+
 ## 1. Local setup
 
 ```bash

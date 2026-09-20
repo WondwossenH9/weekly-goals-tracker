@@ -87,14 +87,24 @@ class WeeklyViewScreen extends ConsumerWidget {
   Future<void> _submit(
       BuildContext context, WidgetRef ref, String title) async {
     if (title.trim().isEmpty) return;
-    final week = await ref.read(currentWeekProvider.future);
-    final goal = await ref
-        .read(goalsRepositoryProvider)
-        .createGoal(weekId: week.id, title: title.trim());
-    await ref
-        .read(todosRepositoryProvider)
-        .ensureTodosForGoal(goal.id, daysOfWeek: const [1, 2, 3, 4, 5, 6, 7]);
-    if (context.mounted) Navigator.of(context).pop();
+    try {
+      final week = await ref.read(currentWeekProvider.future);
+      final goal = await ref
+          .read(goalsRepositoryProvider)
+          .createGoal(weekId: week.id, title: title.trim());
+      await ref
+          .read(todosRepositoryProvider)
+          .ensureTodosForGoal(goal.id, daysOfWeek: const [1, 2, 3, 4, 5, 6, 7]);
+      if (context.mounted) Navigator.of(context).pop();
+    } catch (e) {
+      // Surface failures instead of letting the sheet just sit there with
+      // no feedback — this exact silence is what made the startup race
+      // bug hard to diagnose from the UI alone.
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text("Couldn\u2019t add goal: $e")));
+      }
+    }
   }
 }
 

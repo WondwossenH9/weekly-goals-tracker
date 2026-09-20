@@ -1,4 +1,5 @@
 import "package:drift/drift.dart";
+import "package:sqlite3/sqlite3.dart";
 import "package:uuid/uuid.dart";
 
 import "../local/database.dart";
@@ -10,16 +11,39 @@ class WeeksRepository {
 
   /// Fetches the week row for [weekStart], creating it if it does not
   /// exist yet (e.g. the first time the app is opened in a new week).
+  ///
+  /// This is a check-then-insert, which isn't atomic on its own — a
+  /// unique index on weeks.start_date (see database.dart's migration)
+  /// is what actually prevents two concurrent callers from creating
+  /// duplicate rows for the same week. If that race does happen, the
+  /// loser's insert fails with a constraint violation, which we catch
+  /// below and turn into "fetch what the winner just created" instead
+  /// of surfacing a raw database error.
   Future<Week> getOrCreateWeek(String weekStart) async {
-    final existing = await (_db.select(_db.weeks)
-          ..where((w) => w.startDate.equals(weekStart)))
-        .getSingleOrNull();
+    final existing = await _rowForWeek(weekStart);
     if (existing != null) return existing;
 
-    final row = await _db.into(_db.weeks).insertReturning(
-          WeeksCompanion.insert(id: const Uuid().v4(), startDate: weekStart),
-        );
-    return row;
+    try {
+      return await _db.into(_db.weeks).insertReturning(
+            WeeksCompanion.insert(id: const Uuid().v4(), startDate: weekStart),
+          );
+    } on SqliteException catch (_) {
+      final row = await _rowForWeek(weekStart);
+      if (row == null) rethrow; // genuinely unexpected — don't swallow it
+      return row;
+    }
+  }
+
+  /// Tolerant of more than one matching row (rather than throwing, as
+  /// getSingleOrNull would) — belt-and-suspenders alongside the unique
+  /// index in case any duplicate ever slips through, e.g. from data
+  /// created before that index existed.
+  Future<Week?> _rowForWeek(String weekStart) async {
+    final rows = await (_db.select(_db.weeks)
+          ..where((w) => w.startDate.equals(weekStart))
+          ..limit(1))
+        .get();
+    return rows.isEmpty ? null : rows.first;
   }
 
   Stream<Week?> watchWeek(String weekStart) {

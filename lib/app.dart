@@ -36,6 +36,15 @@ class _StartupGate extends ConsumerStatefulWidget {
 class _StartupGateState extends ConsumerState<_StartupGate>
     with WidgetsBindingObserver {
   late final Future<void> _ready = _initialize();
+  // Guards against a real startup race: Flutter's desktop backend can
+  // fire an initial AppLifecycleState.resumed callback very early, before
+  // _initialize() (kicked off from initState via _ready above) has
+  // finished. Without this flag, that early callback and _initialize()
+  // could both call ensureCurrentWeekIsPopulated() concurrently, and both
+  // would see "no row for this week yet" before either's insert lands —
+  // producing two Week rows for the same date (a unique index now
+  // prevents that outcome too, but this is the actual root cause fix).
+  bool _initialized = false;
 
   @override
   void initState() {
@@ -54,7 +63,9 @@ class _StartupGateState extends ConsumerState<_StartupGate>
     // Re-check on resume in case the app was left open across a week
     // boundary (e.g. left running overnight Sun -> Mon), and reschedule
     // notifications in case the OS dropped them (e.g. after a reboot).
-    if (state == AppLifecycleState.resumed) {
+    // Skipped entirely until first-time initialization has actually
+    // finished — see _initialized's doc comment above.
+    if (state == AppLifecycleState.resumed && _initialized) {
       ref.read(recurrenceEngineProvider).ensureCurrentWeekIsPopulated();
       ref.read(syncServiceProvider).sync();
       _rescheduleNotifications();
@@ -70,6 +81,7 @@ class _StartupGateState extends ConsumerState<_StartupGate>
   Future<void> _initialize() async {
     await ref.read(recurrenceEngineProvider).ensureCurrentWeekIsPopulated();
     await _rescheduleNotifications();
+    _initialized = true;
     // Fire-and-forget: sync should never block first paint, and should
     // never crash startup if the device is offline.
     unawaited(ref.read(syncServiceProvider).sync());
