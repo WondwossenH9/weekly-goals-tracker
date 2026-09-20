@@ -67,7 +67,7 @@ class _StartupGateState extends ConsumerState<_StartupGate>
     // finished — see _initialized's doc comment above.
     if (state == AppLifecycleState.resumed && _initialized) {
       ref.read(recurrenceEngineProvider).ensureCurrentWeekIsPopulated();
-      ref.read(syncServiceProvider).sync();
+      unawaited(triggerSync(ref));
       _rescheduleNotifications();
     }
   }
@@ -84,7 +84,7 @@ class _StartupGateState extends ConsumerState<_StartupGate>
     _initialized = true;
     // Fire-and-forget: sync should never block first paint, and should
     // never crash startup if the device is offline.
-    unawaited(ref.read(syncServiceProvider).sync());
+    unawaited(triggerSync(ref));
   }
 
   @override

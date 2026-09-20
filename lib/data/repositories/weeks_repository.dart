@@ -58,23 +58,49 @@ class WeeksRepository {
         .map((rows) => rows.isEmpty ? null : rows.first);
   }
 
-  Future<List<Week>> pastWeeks({
+  /// Live-updating history query. Reactive on the weeks table, so editing
+  /// a past week's reflection (from Summary, reached via History) and
+  /// coming back updates the list immediately instead of showing stale
+  /// data until something else happens to trigger a refetch.
+  ///
+  /// [goalTitleQuery] does a separate, one-shot lookup against the goals
+  /// table each time weeks changes, rather than a SQL join — simpler to
+  /// get right than a dedup'd join/exists query, and for a single-user
+  /// local dataset (at most a few hundred weeks ever) the cost difference
+  /// is not worth the added complexity. It's not reactive to a goal being
+  /// renamed after the fact, which is an acceptable gap for a "search past
+  /// weeks" feature — renaming a goal doesn't need to instantly reshuffle
+  /// a history list someone might be scrolling at that exact moment.
+  Stream<List<Week>> watchPastWeeks({
     DateTime? fromDate,
     DateTime? toDate,
     double? minCompletionPct,
-  }) async {
+    String? goalTitleQuery,
+  }) {
     final query = _db.select(_db.weeks)
       ..orderBy([(w) => OrderingTerm.desc(w.startDate)]);
-    final rows = await query.get();
-    return rows.where((w) {
-      final start = WeekUtils.parse(w.startDate);
-      if (fromDate != null && start.isBefore(fromDate)) return false;
-      if (toDate != null && start.isAfter(toDate)) return false;
-      if (minCompletionPct != null && w.completionPct < minCompletionPct) {
-        return false;
+    return query.watch().asyncMap((weeks) async {
+      Set<String>? matchingWeekIds;
+      final trimmedQuery = goalTitleQuery?.trim();
+      if (trimmedQuery != null && trimmedQuery.isNotEmpty) {
+        final matches = await (_db.select(_db.goals)
+              ..where((g) => g.title.like("%$trimmedQuery%")))
+            .get();
+        matchingWeekIds = matches.map((g) => g.weekId).toSet();
       }
-      return true;
-    }).toList();
+      return weeks.where((w) {
+        final start = WeekUtils.parse(w.startDate);
+        if (fromDate != null && start.isBefore(fromDate)) return false;
+        if (toDate != null && start.isAfter(toDate)) return false;
+        if (minCompletionPct != null && w.completionPct < minCompletionPct) {
+          return false;
+        }
+        if (matchingWeekIds != null && !matchingWeekIds.contains(w.id)) {
+          return false;
+        }
+        return true;
+      }).toList();
+    });
   }
 
   Future<void> saveReflection(String weekId, String text) async {

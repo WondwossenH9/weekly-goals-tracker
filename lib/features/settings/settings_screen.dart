@@ -4,6 +4,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "../../data/local/database.dart";
 import "../../providers/providers.dart";
 import "../recurring/recurring_templates_screen.dart";
+import "../sync/sync_status_indicator.dart";
 
 /// All three reminder toggles read from and write straight to the
 /// persisted [NotificationSettingsRow] (see providers.dart) — nothing here
@@ -18,7 +19,10 @@ class SettingsScreen extends ConsumerWidget {
     final settingsAsync = ref.watch(notificationSettingsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Settings")),
+      appBar: AppBar(
+        title: const Text("Settings"),
+        actions: const [SyncStatusIndicator()],
+      ),
       body: settingsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text("Couldn\u2019t load settings: $e")),
@@ -46,7 +50,7 @@ class SettingsScreen extends ConsumerWidget {
             ListTile(
               title: const Text("Sync now"),
               leading: const Icon(Icons.sync),
-              onTap: () => ref.read(syncServiceProvider).sync(),
+              onTap: () => triggerSync(ref),
             ),
           ],
         ),

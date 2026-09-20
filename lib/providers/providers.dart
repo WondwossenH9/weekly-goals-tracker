@@ -75,6 +75,27 @@ final syncServiceProvider = Provider<SyncService>((ref) {
   );
 });
 
+/// Result of the most recent sync attempt (or "syncing" while one is in
+/// flight). Only triggerSync() below should write to this — the actual
+/// SyncService.sync() call is deliberately kept UI-agnostic.
+final syncStatusProvider = StateProvider<SyncStatus>((ref) => SyncStatus.idle);
+
+/// Whether any local row is still waiting to be pushed. Independent of
+/// syncStatusProvider: a sync can finish successfully and this can still
+/// be true again a second later, the moment the next todo gets toggled.
+final hasPendingChangesProvider = StreamProvider<bool>((ref) {
+  return ref.watch(syncServiceProvider).watchHasPendingChanges();
+});
+
+/// The one place that should ever call SyncService.sync() from UI code —
+/// keeps syncStatusProvider honestly in sync with what's actually
+/// happening, rather than every call site remembering to update it.
+Future<void> triggerSync(WidgetRef ref) async {
+  ref.read(syncStatusProvider.notifier).state = SyncStatus.syncing;
+  final result = await ref.read(syncServiceProvider).sync();
+  ref.read(syncStatusProvider.notifier).state = result;
+}
+
 final notificationServiceProvider = FutureProvider<NotificationService>((ref) async {
   final service = NotificationService();
   await service.init();

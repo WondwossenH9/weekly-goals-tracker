@@ -18,11 +18,14 @@ you start.
 | Project scaffold, theme, adaptive nav shell | Done |
 | Local DB (drift): goals, todos, weeks, recurrence templates, notification settings | Done |
 | Repositories (CRUD + completion-% calculation) | Done |
-| Weekly view, Summary, History, Settings screens | Done |
-| Recurring goals: engine + authoring UI (Settings > Manage recurring goals) | Done |
-| Supabase schema + auth (magic link) + sync service | Done, see caveat below |
-| Notifications: daily nudge, weekly reflection, recurring setup — persisted + rescheduled on launch/resume | Done, see caveat below |
-| `android/`, `linux/` platform folders | **Not generated — see step 1 below** |
+| Weekly view, Summary, History, Settings screens | Done, actually verified running on Linux desktop |
+| Goal management: create, rename, archive (+ restore), delete | Done |
+| Recurring goals: engine + authoring UI (Settings > Manage recurring goals) | Done, not yet tested across a real week boundary |
+| History: browse + filter by date range, completion %, and goal name | Done |
+| Sync status indicator (☁️/⏳/⚠️) | Done, shows idle/synced until a real Supabase project is connected |
+| Supabase schema + auth (magic link) + sync service | Code done, **not yet tested against a real project** |
+| Notifications: daily nudge, weekly reflection, recurring setup — persisted + rescheduled on launch/resume | Code done, **not yet verified to actually fire** |
+| `android/` platform folder, Android build | **Not started — deliberately deferred until desktop is fully hardened** |
 | Tests | Not written |
 
 ## Known gaps / things to double-check first
@@ -230,14 +233,44 @@ Note: the `weekly-goals-tracker` repo needs to already exist (empty) on
 GitHub before this push works — create it at github.com/new first (no
 description or README needed, this repo brings its own).
 
-## Suggested next steps (matches the original build order)
+## Desktop hardening checklist (before Android)
 
-1. Run through "Local setup" above and fix whatever the compiler flags.
-2. Wire the sync-status enum into the app bar's ☁️/⏳/⚠️ indicator.
-3. Add `flutter_timezone` if the app should ever autodetect timezone
+Everything code-level against the original spec is now implemented,
+including a couple of gaps found by re-reading the spec against the code
+rather than just testing the happy path (goal rename/archive/delete had
+repository methods but no UI at all; the History screen's completion-%
+and goal-name filters were the same story; the ☁️/⏳/⚠️ sync indicator
+didn't exist anywhere). What's left is testing, not building:
+
+1. **Recurring goals across a real week boundary.** Everything so far has
+   only been exercised within a single calendar week. To actually verify
+   a template regenerates correctly next week (and that a biweekly
+   template correctly skips the *following* week), you need either to
+   wait, or to simulate it — temporarily disable NTP and move the system
+   clock forward (`sudo timedatectl set-ntp false && sudo date -s
+   "next monday 09:00"`), relaunch the app, check the new week populated
+   correctly, then `sudo timedatectl set-ntp true` to resync.
+2. **History with real historical data.** The same clock trick above is
+   also the fastest way to generate actual past weeks to browse and
+   filter, rather than looking at an empty History screen.
+3. **A real Supabase project.** Follow "2. Supabase project setup" below,
+   then sign in from Settings and confirm: the sync indicator moves
+   through ⏳ pending -> ☁️ synced, data actually lands in the Supabase
+   dashboard, and (ideally) a second local sqlite file signed into the
+   same account pulls it back down.
+4. **Notifications actually firing.** Set a reminder a minute or two in
+   the future from Settings and confirm it appears — the scheduling code
+   has never been run against the real OS notification system.
+
+## Suggested next steps (lower priority / polish)
+
+1. Add `flutter_timezone` if the app should ever autodetect timezone
    instead of the current fixed Ethiopia default.
-4. Desktop layout polish pass (the adaptive shell is functional, not
+2. Desktop layout polish pass (the adaptive shell is functional, not
    pixel-tuned).
-5. Consider a "make this goal recurring" action on an existing plain goal
+3. Consider a "make this goal recurring" action on an existing plain goal
    in the Weekly view, if the current "author it in Settings first" flow
    feels like one extra step in practice.
+4. `WeeksRepository.watchPastWeeks()`'s goal-name filter isn't reactive to
+   a goal being renamed after the fact (see its doc comment) — acceptable
+   for now, revisit if it's ever noticeable in practice.

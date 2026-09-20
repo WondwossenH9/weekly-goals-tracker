@@ -52,6 +52,26 @@ class SyncService {
     return row?.lastSyncedAt;
   }
 
+  /// Reactive — true whenever any syncable table has a row still flagged
+  /// pendingSync. Drives the ⏳ "changes waiting to sync" state in the UI
+  /// independently of whether a sync is actively running right now.
+  /// Uses a raw query (rather than combining four separate watch streams,
+  /// which would need a stream-combining package this project doesn't
+  /// otherwise depend on) with readsFrom so drift still re-runs it
+  /// whenever any of the four tables change.
+  Stream<bool> watchHasPendingChanges() {
+    final query = _db.customSelect(
+      "SELECT ("
+      "EXISTS(SELECT 1 FROM weeks WHERE pending_sync = 1) OR "
+      "EXISTS(SELECT 1 FROM goals WHERE pending_sync = 1) OR "
+      "EXISTS(SELECT 1 FROM todos WHERE pending_sync = 1) OR "
+      "EXISTS(SELECT 1 FROM recurrence_templates WHERE pending_sync = 1)"
+      ") AS has_pending",
+      readsFrom: {_db.weeks, _db.goals, _db.todos, _db.recurrenceTemplates},
+    );
+    return query.watch().map((rows) => (rows.single.data["has_pending"] as int) != 0);
+  }
+
   // ---- Push (local pendingSync=true rows -> Supabase) ----------------
 
   Future<void> _pushWeeks(String userId) async {

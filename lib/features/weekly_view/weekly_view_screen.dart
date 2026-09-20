@@ -3,6 +3,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 
 import "../../data/local/database.dart";
 import "../../providers/providers.dart";
+import "../sync/sync_status_indicator.dart";
 import "widgets/todo_tile.dart";
 
 class WeeklyViewScreen extends ConsumerWidget {
@@ -17,6 +18,12 @@ class WeeklyViewScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text("This Week"),
         actions: [
+          const SyncStatusIndicator(),
+          IconButton(
+            icon: const Icon(Icons.archive_outlined),
+            tooltip: "Archived goals",
+            onPressed: () => _showArchivedGoals(context, ref),
+          ),
           weekAsync.maybeWhen(
             data: (week) => week == null
                 ? const SizedBox.shrink()
@@ -108,6 +115,16 @@ class WeeklyViewScreen extends ConsumerWidget {
       }
     }
   }
+
+  Future<void> _showArchivedGoals(BuildContext context, WidgetRef ref) async {
+    final week = await resolveCurrentWeek(ref);
+    if (!context.mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _ArchivedGoalsSheet(weekId: week.id),
+    );
+  }
 }
 
 class _GoalRow extends ConsumerWidget {
@@ -133,6 +150,36 @@ class _GoalRow extends ConsumerWidget {
                 Expanded(
                   child: Text(goal.title,
                       style: Theme.of(context).textTheme.titleMedium),
+                ),
+                PopupMenuButton<_GoalAction>(
+                  icon: const Icon(Icons.more_vert, size: 20),
+                  onSelected: (action) => _handleAction(context, ref, action),
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: _GoalAction.rename,
+                      child: ListTile(
+                        leading: Icon(Icons.edit_outlined),
+                        title: Text("Rename"),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: _GoalAction.archive,
+                      child: ListTile(
+                        leading: Icon(Icons.archive_outlined),
+                        title: Text("Archive"),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: _GoalAction.delete,
+                      child: ListTile(
+                        leading: Icon(Icons.delete_outline),
+                        title: Text("Delete"),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -160,6 +207,132 @@ class _GoalRow extends ConsumerWidget {
                         ),
                     ],
                   ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleAction(
+      BuildContext context, WidgetRef ref, _GoalAction action) async {
+    switch (action) {
+      case _GoalAction.rename:
+        await _rename(context, ref);
+      case _GoalAction.archive:
+        await _archive(context, ref);
+      case _GoalAction.delete:
+        await _delete(context, ref);
+    }
+  }
+
+  Future<void> _rename(BuildContext context, WidgetRef ref) async {
+    final controller = TextEditingController(text: goal.title);
+    final newTitle = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Rename goal"),
+        content: TextField(controller: controller, autofocus: true),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(), child: const Text("Cancel")),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+    if (newTitle != null && newTitle.isNotEmpty && newTitle != goal.title) {
+      await ref.read(goalsRepositoryProvider).renameGoal(goal.id, newTitle);
+    }
+  }
+
+  Future<void> _archive(BuildContext context, WidgetRef ref) async {
+    await ref.read(goalsRepositoryProvider).archiveGoal(goal.id);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Archived \u201c${goal.title}\u201d"),
+          action: SnackBarAction(
+            label: "Undo",
+            onPressed: () =>
+                ref.read(goalsRepositoryProvider).unarchiveGoal(goal.id),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete goal?"),
+        content: Text(
+          "\u201c${goal.title}\u201d and all its todos for this week will be "
+          "permanently deleted. This can\u2019t be undone.",
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text("Cancel")),
+          FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text("Delete")),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(goalsRepositoryProvider).deleteGoal(goal.id);
+    }
+  }
+}
+
+enum _GoalAction { rename, archive, delete }
+
+class _ArchivedGoalsSheet extends ConsumerWidget {
+  const _ArchivedGoalsSheet({required this.weekId});
+  final String weekId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final goalsRepo = ref.watch(goalsRepositoryProvider);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Archived this week",
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            StreamBuilder<List<Goal>>(
+              stream: goalsRepo.watchArchivedGoalsForWeek(weekId),
+              builder: (context, snapshot) {
+                final archived = snapshot.data ?? const <Goal>[];
+                if (archived.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Text("No archived goals this week."),
+                  );
+                }
+                return ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: archived.length,
+                  itemBuilder: (context, i) {
+                    final goal = archived[i];
+                    return ListTile(
+                      title: Text(goal.title),
+                      trailing: TextButton(
+                        onPressed: () => goalsRepo.unarchiveGoal(goal.id),
+                        child: const Text("Restore"),
+                      ),
+                    );
+                  },
                 );
               },
             ),

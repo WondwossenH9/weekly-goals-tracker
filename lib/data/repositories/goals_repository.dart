@@ -14,6 +14,13 @@ class GoalsRepository {
         .watch();
   }
 
+  Stream<List<Goal>> watchArchivedGoalsForWeek(String weekId) {
+    return (_db.select(_db.goals)
+          ..where((g) => g.weekId.equals(weekId) & g.archived.equals(true))
+          ..orderBy([(g) => OrderingTerm.asc(g.createdAt)]))
+        .watch();
+  }
+
   Future<Goal> createGoal({
     required String weekId,
     required String title,
@@ -45,6 +52,16 @@ class GoalsRepository {
     return (_db.update(_db.goals)..where((g) => g.id.equals(goalId))).write(
       GoalsCompanion(
         archived: const Value(true),
+        updatedAt: Value(DateTime.now()),
+        pendingSync: const Value(true),
+      ),
+    );
+  }
+
+  Future<void> unarchiveGoal(String goalId) {
+    return (_db.update(_db.goals)..where((g) => g.id.equals(goalId))).write(
+      GoalsCompanion(
+        archived: const Value(false),
         updatedAt: Value(DateTime.now()),
         pendingSync: const Value(true),
       ),

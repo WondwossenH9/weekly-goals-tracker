@@ -6,6 +6,7 @@ import "../../core/week_utils.dart";
 import "../../data/local/database.dart";
 import "../../providers/providers.dart";
 import "../reflection/reflection_field.dart";
+import "../sync/sync_status_indicator.dart";
 
 /// End-of-week summary: overall %, per-goal %, per-day %, plus the
 /// reflection field. Also reachable "anytime" (not just at week end) per
@@ -19,7 +20,10 @@ class SummaryScreen extends ConsumerWidget {
     final goalsAsync = ref.watch(goalsForCurrentWeekProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Week Summary")),
+      appBar: AppBar(
+        title: const Text("Week Summary"),
+        actions: const [SyncStatusIndicator()],
+      ),
       body: weekAsync.when(
         data: (week) => week == null
             ? const Center(child: CircularProgressIndicator())
