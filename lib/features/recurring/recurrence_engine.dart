@@ -27,8 +27,16 @@ class RecurrenceEngine {
   final GoalsRepository _goalsRepository;
   final TodosRepository _todosRepository;
 
-  Future<void> ensureCurrentWeekIsPopulated() async {
-    final weekStart = WeekUtils.currentWeekStart();
+  Future<void> ensureCurrentWeekIsPopulated() =>
+      ensureWeekIsPopulated(WeekUtils.currentWeekStart());
+
+  /// Does the actual work, for whatever [weekStart] you give it — normal
+  /// app operation always calls this via [ensureCurrentWeekIsPopulated]
+  /// above, but taking the week as a parameter (rather than hardcoding
+  /// "today") is also what lets the debug "jump to week" tool in Settings
+  /// exercise this exact logic against an arbitrary past or future week,
+  /// without needing to touch the system clock to test it.
+  Future<void> ensureWeekIsPopulated(String weekStart) async {
     final week = await _weeksRepository.getOrCreateWeek(weekStart);
 
     final templates = await (_db.select(_db.recurrenceTemplates)
@@ -38,12 +46,13 @@ class RecurrenceEngine {
     for (final template in templates) {
       if (!_appliesToWeek(template, weekStart)) continue;
 
-      final alreadyExists = await (_db.select(_db.goals)
+      final existing = await (_db.select(_db.goals)
             ..where((g) =>
                 g.weekId.equals(week.id) &
-                g.recurrenceTemplateId.equals(template.id)))
-          .getSingleOrNull();
-      if (alreadyExists != null) continue;
+                g.recurrenceTemplateId.equals(template.id))
+            ..limit(1))
+          .get();
+      if (existing.isNotEmpty) continue;
 
       final goal = await _goalsRepository.createGoal(
         weekId: week.id,

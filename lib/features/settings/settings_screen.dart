@@ -1,6 +1,8 @@
+import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 
+import "../../core/week_utils.dart";
 import "../../data/local/database.dart";
 import "../../providers/providers.dart";
 import "../recurring/recurring_templates_screen.dart";
@@ -52,6 +54,10 @@ class SettingsScreen extends ConsumerWidget {
               leading: const Icon(Icons.sync),
               onTap: () => triggerSync(ref),
             ),
+            if (kDebugMode) ...[
+              const Divider(),
+              const _DevToolsSection(),
+            ],
           ],
         ),
       ),
@@ -225,6 +231,88 @@ String _weekdayName(int weekday) => const [
       "Saturday",
       "Sunday",
     ][weekday - 1];
+
+/// Debug-only (see the kDebugMode guard where this is used). Lets you
+/// point the Week/Summary tabs at an arbitrary past or future week and
+/// run the recurring-goals engine against it, so History and recurring
+/// goals can be tested against real, varied data without touching the
+/// system clock — this only changes which week the app's own state
+/// considers "selected," never DateTime.now() itself.
+class _DevToolsSection extends ConsumerWidget {
+  const _DevToolsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedWeekStart = ref.watch(selectedWeekStartProvider);
+    final isViewingToday = selectedWeekStart == WeekUtils.currentWeekStart();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionHeader("Developer tools (debug builds only)"),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            "For testing History and recurring goals against a week other "
+            "than today, without changing your system clock.",
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+        const SizedBox(height: 4),
+        ListTile(
+          leading: Icon(isViewingToday ? Icons.today : Icons.event_busy),
+          title: Text(isViewingToday
+              ? "Viewing: today's week"
+              : "Viewing: week of $selectedWeekStart"),
+          subtitle: isViewingToday
+              ? null
+              : const Text("Not your real current week \u2014 Week/Summary "
+                  "tabs reflect this instead"),
+        ),
+        ListTile(
+          leading: const Icon(Icons.date_range),
+          title: const Text("Jump to a week"),
+          subtitle: const Text("Pick any date; Week/Summary tabs follow it"),
+          onTap: () => _jumpToWeek(ref, context),
+        ),
+        ListTile(
+          leading: const Icon(Icons.auto_awesome),
+          title: const Text("Populate recurring goals for viewed week"),
+          subtitle: const Text(
+              "Runs the exact logic that normally runs at a real week's start"),
+          onTap: () async {
+            await ref
+                .read(recurrenceEngineProvider)
+                .ensureWeekIsPopulated(selectedWeekStart);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text("Recurring goals populated for viewed week")));
+            }
+          },
+        ),
+        if (!isViewingToday)
+          ListTile(
+            leading: const Icon(Icons.undo),
+            title: const Text("Return to today"),
+            onTap: () => ref.read(selectedWeekStartProvider.notifier).state =
+                WeekUtils.currentWeekStart(),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _jumpToWeek(WidgetRef ref, BuildContext context) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      firstDate: DateTime(now.year - 3),
+      lastDate: DateTime(now.year + 1),
+      initialDate: now,
+    );
+    if (picked == null) return;
+    ref.read(selectedWeekStartProvider.notifier).state = WeekUtils.mondayOf(picked);
+  }
+}
 
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader(this.text);

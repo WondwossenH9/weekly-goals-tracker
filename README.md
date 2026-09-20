@@ -242,23 +242,24 @@ repository methods but no UI at all; the History screen's completion-%
 and goal-name filters were the same story; the ☁️/⏳/⚠️ sync indicator
 didn't exist anywhere). What's left is testing, not building:
 
-1. **Recurring goals across a real week boundary.** Everything so far has
-   only been exercised within a single calendar week. To actually verify
-   a template regenerates correctly next week (and that a biweekly
-   template correctly skips the *following* week), you need either to
-   wait, or to simulate it — temporarily disable NTP and move the system
-   clock forward (`sudo timedatectl set-ntp false && sudo date -s
-   "next monday 09:00"`), relaunch the app, check the new week populated
-   correctly, then `sudo timedatectl set-ntp true` to resync.
-2. **History with real historical data.** The same clock trick above is
-   also the fastest way to generate actual past weeks to browse and
-   filter, rather than looking at an empty History screen.
-3. **A real Supabase project.** Follow "2. Supabase project setup" below,
+1. **Recurring goals across a real week boundary, and History with real
+   data — without touching your system clock.** Settings has a
+   debug-only "Developer tools" section (only visible in debug builds,
+   via `kDebugMode`) that points the Week/Summary tabs at any date you
+   pick and can run the recurring-goals engine against it — the exact
+   same logic that normally runs at a real week's start, just callable
+   on demand. This changes only the app's own in-memory "which week am I
+   looking at" state, never `DateTime.now()`, so it's both safer and
+   more surgical than adjusting the system clock. Use it to build up a
+   few weeks of varied test data (different completion levels, some with
+   reflections, a mix of recurring and one-off goals), then check History
+   actually has something real to browse and filter.
+2. **A real Supabase project.** Follow "2. Supabase project setup" below,
    then sign in from Settings and confirm: the sync indicator moves
    through ⏳ pending -> ☁️ synced, data actually lands in the Supabase
    dashboard, and (ideally) a second local sqlite file signed into the
    same account pulls it back down.
-4. **Notifications actually firing.** Set a reminder a minute or two in
+3. **Notifications actually firing.** Set a reminder a minute or two in
    the future from Settings and confirm it appears — the scheduling code
    has never been run against the real OS notification system.
 
