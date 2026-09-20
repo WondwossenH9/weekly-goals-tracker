@@ -88,7 +88,14 @@ class WeeksRepository {
             .get();
         matchingWeekIds = matches.map((g) => g.weekId).toSet();
       }
+      final currentWeekStart = WeekUtils.currentWeekStart();
       return weeks.where((w) {
+        // "History" means completed weeks — the current, still-in-progress
+        // week already has its own Week/Summary tabs, and showing it here
+        // too would be redundant at best and misleading once real
+        // historical data exists (a filtered result could otherwise
+        // include a week that isn't actually over yet).
+        if (w.startDate == currentWeekStart) return false;
         final start = WeekUtils.parse(w.startDate);
         if (fromDate != null && start.isBefore(fromDate)) return false;
         if (toDate != null && start.isAfter(toDate)) return false;
